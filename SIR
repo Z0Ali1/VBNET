@@ -1,0 +1,159 @@
+Public Class SIR
+    Dim dots As New List(Of Dot)
+    Dim rnd As New Random
+    Dim Infectrate As Double = 0.02
+    Dim timeStep As Integer = 0
+    Dim infectedHistory As New List(Of Integer)
+    Dim nonInfectedHistory As New List(Of Integer)
+    Public Property Population As Integer
+    Public Property SimName As String
+
+    Public Class Dot
+        Public Property x As Integer
+        Public Property y As Integer
+        Public Property isinfected As Boolean
+        Public Property Population As Integer
+        Public Property friends As New List(Of Dot)
+    End Class
+
+    Private Sub SIR_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Label2.Text = SimName
+        TrackBar1.Minimum = 1
+        TrackBar1.Maximum = Population
+        Timer1.Interval = 50
+        SetupChart()
+        initialisedots(TrackBar1.Value, Population)
+        Timer1.Start()
+    End Sub
+
+    Private Sub SetupChart()
+        ChartSIR.Series.Clear()
+        ChartSIR.ChartAreas.Clear()
+        Dim area = New DataVisualization.Charting.ChartArea("SIR_Area")
+        ChartSIR.ChartAreas.Add(area)
+        Dim sHealthy = New DataVisualization.Charting.Series("Healthy")
+        sHealthy.ChartType = DataVisualization.Charting.SeriesChartType.StackedArea
+        sHealthy.Color = Color.LimeGreen
+        sHealthy.BorderWidth = 0
+        sHealthy.IsVisibleInLegend = True
+        Dim sInfected = New DataVisualization.Charting.Series("Infected")
+        sInfected.ChartType = DataVisualization.Charting.SeriesChartType.StackedArea
+        sInfected.Color = Color.Crimson
+        sInfected.BorderWidth = 0
+        sInfected.IsVisibleInLegend = True
+        ChartSIR.Series.Add(sHealthy)
+        ChartSIR.Series.Add(sInfected)
+    End Sub
+
+    Private Sub TrackBar1_Scroll(sender As Object, e As EventArgs) Handles TrackBar1.Scroll
+        initialisedots(TrackBar1.Value, Population)
+    End Sub
+
+    Sub initialisedots(count As Integer, population As Integer)
+        dots.Clear()
+        For i = 1 To population
+            Dim d As New Dot()
+            d.x = rnd.Next(Panel1.Width)
+            d.y = rnd.Next(Panel1.Height)
+            d.isinfected = False
+            dots.Add(d)
+        Next
+        If dots.Count > 0 Then dots(0).isinfected = True
+        For Each d In dots
+            For i = 1 To 3
+                Dim f = dots(rnd.Next(dots.Count))
+                If f IsNot d AndAlso Not d.friends.Contains(f) Then
+                    d.friends.Add(f)
+                    f.friends.Add(d)
+                End If
+            Next
+        Next
+        infectedHistory.Clear()
+        nonInfectedHistory.Clear()
+        timeStep = 0
+        ChartSIR.Series("Healthy").Points.Clear()
+        ChartSIR.Series("Infected").Points.Clear()
+    End Sub
+
+    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
+        For Each d In dots
+            d.x += rnd.Next(-5, 6)
+            d.y += rnd.Next(-5, 6)
+            If d.x < 0 Then d.x = 0
+            If d.y < 0 Then d.y = 0
+            If d.x > Panel1.Width Then d.x = Panel1.Width
+            If d.y > Panel1.Height Then d.y = Panel1.Height
+        Next
+        infectdots()
+        Panel1.Invalidate()
+        Dim infectedCount As Integer = 0
+        Dim nonInfectedCount As Integer = 0
+        For Each d In dots
+            If d.isinfected Then
+                infectedCount += 1
+            Else
+                nonInfectedCount += 1
+            End If
+        Next
+        infectedHistory.Add(infectedCount)
+        nonInfectedHistory.Add(nonInfectedCount)
+        UpdateChart()
+        timeStep += 1
+    End Sub
+
+    Private Sub UpdateChart()
+        ChartSIR.Series("Healthy").Points.Clear()
+        ChartSIR.Series("Infected").Points.Clear()
+        For i = 0 To infectedHistory.Count - 1
+            ChartSIR.Series("Healthy").Points.AddXY(i, nonInfectedHistory(i))
+            ChartSIR.Series("Infected").Points.AddXY(i, infectedHistory(i))
+        Next
+    End Sub
+
+    Sub infectdots()
+        For Each d In dots
+            If d.isinfected Then
+                InfectGraph(d)
+            End If
+        Next
+    End Sub
+
+    Private Sub InfectGraph(d As Dot)
+        For Each f In d.friends
+            If Not f.isinfected AndAlso rnd.NextDouble() < Infectrate Then
+                f.isinfected = True
+                InfectGraph(f)
+            End If
+        Next
+    End Sub
+
+    Private Sub Panel1_Paint(sender As Object, e As PaintEventArgs) Handles Panel1.Paint
+        For Each d In dots
+            Dim c As Color = If(d.isinfected, Color.Crimson, Color.Lime)
+            Using brush As New SolidBrush(c)
+                e.Graphics.FillEllipse(brush, d.x - 5, d.y - 5, 10, 10)
+            End Using
+        Next
+        Label2.BringToFront()
+    End Sub
+
+    Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        initialisedots(TrackBar1.Value, Population)
+    End Sub
+
+    Private Sub Button3_Click(sender As Object, e As EventArgs) Handles Button3.Click
+        If Timer1.Enabled Then
+            Timer1.Stop()
+        Else
+            Timer1.Start()
+        End If
+    End Sub
+
+    Private Sub Button6_Click(sender As Object, e As EventArgs) Handles Button6.Click
+        Dim simulation As New Form()
+        simulation.Show()
+    End Sub
+
+    Private Sub Label2_Click(sender As Object, e As EventArgs) Handles Label2.Click
+    End Sub
+End Class
